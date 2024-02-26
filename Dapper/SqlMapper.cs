@@ -334,7 +334,18 @@ namespace Dapper
         /// </summary>
         /// <param name="type">The type to handle.</param>
         /// <returns>Boolean value specifying whether the type will be processed by a custom handler.</returns>
-        public static bool HasTypeHandler(Type type) => typeHandlers.ContainsKey(type);
+        public static bool HasTypeHandler(Type type) => typeHandlers.ContainsKey(type) || DynamicTypeHandler.TryGetHandler(type, out _);
+
+        /// <summary>
+        /// Tries to get the custom handler for the specified type.
+        /// </summary>
+        /// <param name="type">The type to handle.</param>
+        /// <param name="handler">The handler that processes <paramref name="type"/>.</param>
+        /// <returns></returns>
+        public static bool TryGetTypeHandler(Type type, out ITypeHandler? handler)
+        {
+            return typeHandlers.TryGetValue(type, out handler) || DynamicTypeHandler.TryGetHandler(type, out handler);
+        }
 
         /// <summary>
         /// Configure the specified type to be processed by a custom handler.
@@ -450,7 +461,7 @@ namespace Dapper
             {
                 return DbType.Binary;
             }
-            if (typeHandlers.TryGetValue(type, out handler))
+            if (TryGetTypeHandler(type, out handler))
             {
                 return DbType.Object;
             }
@@ -1938,9 +1949,9 @@ namespace Dapper
             else if (!(type.IsEnum || type.IsArray || type.FullName == LinqBinary
                 || (type.IsValueType && (underlyingType = Nullable.GetUnderlyingType(type)) is not null && underlyingType.IsEnum)))
             {
-                if (typeHandlers.TryGetValue(type, out ITypeHandler? handler))
+                if (TryGetTypeHandler(type, out ITypeHandler? handler))
                 {
-                    return GetHandlerDeserializer(handler, type, startBound);
+                    return GetHandlerDeserializer(handler!, type, startBound);
                 }
                 return GetTypeDeserializer(type, reader, startBound, length, returnNullIfFirstMissing);
             }
@@ -3079,12 +3090,12 @@ namespace Dapper
                     return val is DBNull ? null! : Enum.ToObject(effectiveType, val);
                 };
             }
-            if (typeHandlers.TryGetValue(type, out var handler))
+            if (TryGetTypeHandler(type, out var handler))
             {
                 return r =>
                 {
                     var val = r.GetValue(index);
-                    return val is DBNull ? null! : handler.Parse(type, val)!;
+                    return val is DBNull ? null! : handler!.Parse(type, val)!;
                 };
             }
             return useGetFieldValue ? ReadViaGetFieldValueFactory(type, index) : ReadViaGetValue(index);
@@ -3137,9 +3148,9 @@ namespace Dapper
                 }
                 return (T)Enum.ToObject(type, value);
             }
-            if (typeHandlers.TryGetValue(type, out ITypeHandler? handler))
+            if (TryGetTypeHandler(type, out ITypeHandler? handler))
             {
-                return (T)handler.Parse(type, value)!;
+                return (T)handler!.Parse(type, value)!;
             }
             return (T)Convert.ChangeType(value, type, CultureInfo.InvariantCulture);
         }
@@ -3741,7 +3752,7 @@ namespace Dapper
                 {
                     TypeCode dataTypeCode = Type.GetTypeCode(colType), unboxTypeCode = Type.GetTypeCode(unboxType);
                     bool hasTypeHandler;
-                    if ((hasTypeHandler = typeHandlers.ContainsKey(unboxType)) || colType == unboxType || dataTypeCode == unboxTypeCode || dataTypeCode == Type.GetTypeCode(nullUnderlyingType))
+                    if ((hasTypeHandler = HasTypeHandler(unboxType)) || colType == unboxType || dataTypeCode == unboxTypeCode || dataTypeCode == Type.GetTypeCode(nullUnderlyingType))
                     {
                         if (hasTypeHandler)
                         {

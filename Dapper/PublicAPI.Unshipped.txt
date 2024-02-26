@@ -1,1 +1,5 @@
 ﻿#nullable enable
+Dapper.DynamicTypeHandler
+static Dapper.DynamicTypeHandler.Configure(params System.Func<System.Type!, Dapper.SqlMapper.ITypeHandler?>![]! chain) -> void
+static Dapper.DynamicTypeHandler.TryGetHandler(System.Type! type, out Dapper.SqlMapper.ITypeHandler? handler) -> bool
+static Dapper.SqlMapper.TryGetTypeHandler(System.Type! type, out Dapper.SqlMapper.ITypeHandler? handler) -> bool
